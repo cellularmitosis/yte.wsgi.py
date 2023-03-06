@@ -193,6 +193,21 @@ def Channel_to_dict(ch):
         "Thumbnails": list(map(Thumbnail_to_dict, ch.Thumbnails)),
     }
 
+def Playlist_to_dict(pl):
+    d = {
+        "__typename": str(pl.GetType()),
+        "Id": str(pl.Id),
+        "Url": pl.Url,
+        "Title": pl.Title,
+        "Description": pl.Description,
+        "Thumbnails": list(map(Thumbnail_to_dict, pl.Thumbnails)),
+    }
+    if pl.Author is not None:
+        d["Author"] = Author_to_dict(pl.Author)
+    else:
+        d["Author"] = None
+    return d
+
 def VideoSearchResult_to_dict(vsr):
     return {
         "__typename": str(vsr.GetType()),
@@ -292,8 +307,14 @@ curl -X GET http://localhost:8000/channel?handle=RickAstleyYT
 curl -X GET http://localhost:8000/channel?slug=BlenderFoundation
 curl -X GET http://localhost:8000/channel?user=65scribe
 
-List the video uploads of a channel:
+List the video uploads of a channel (currently broken?):
 curl -X GET http://localhost:8000/channel/uploads?id=UCuAXFkgsw1L7xaCfnd5JJOw
+
+List the the details of a playlist:
+curl -X GET http://localhost:8000/playlist?id=FL8dJOqcjyiA9Zo9aOxxiCMw
+
+List the videos of a playlist (currently broken?):
+curl -X GET http://localhost:8000/playlist/videos?id=FL8dJOqcjyiA9Zo9aOxxiCMw
 
 """
     d["headers"] = [
@@ -367,6 +388,7 @@ def channel_endpoint(request):
     return response
 routes["/channel"] = channel_endpoint
 
+# This seems to just hang
 # def channel_uploads_endpoint(request):
 #     params = parse_GET_query(request)
 #     if "id" in params:
@@ -379,6 +401,33 @@ routes["/channel"] = channel_endpoint
 #     response = make_response_from_dict(200, body, request)
 #     return response
 # routes["/channel/uploads"] = channel_uploads_endpoint
+
+def playlist_endpoint(request):
+    params = parse_GET_query(request)
+    if "id" in params:
+        pl_id_str = urllib.parse.unquote_plus(params["id"], encoding="utf-8")
+        pl_id = YoutubeExplode.Playlists.PlaylistId(pl_id_str)
+        pl = yt.Playlists.Get(pl_id)
+    else:
+        return make_400_bad_request_text_plain_response()
+    body = Playlist_to_dict(pl)
+    response = make_response_from_dict(200, body, request)
+    return response
+routes["/playlist"] = playlist_endpoint
+
+# This seems to just hang
+# def playlist_videos_endpoint(request):
+#     params = parse_GET_query(request)
+#     if "id" in params:
+#         pl_id_str = urllib.parse.unquote_plus(params["id"], encoding="utf-8")
+#         pl_id = YoutubeExplode.Playlists.PlaylistId(pl_id_str)
+#         plv = yt.Playlists.GetVideos(pl_id)
+#     else:
+#         return make_400_bad_request_text_plain_response()
+#     body = list(map(PlaylistVideo_to_dict, plv))
+#     response = make_response_from_dict(200, body, request)
+#     return response
+# routes["/playlist/videos"] = playlist_videos_endpoint
 
 if __name__ == "__main__":
     from wsgiref.simple_server import make_server
